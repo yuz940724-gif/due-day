@@ -22,6 +22,22 @@ DueDay 用来帮助用户提前管理信用卡、贷款、房贷、保险、会�
 - 查看月度完成率、类别分布和未来六个月预测。
 - 本地通知、云端同步和数据导出入口保留交互占位。
 
+## 页面截图
+
+以下截图来自运行 iOS 26.5 的 iPhone 17 Pro 模拟器。
+
+| 首页 | 账单计划 |
+| --- | --- |
+| <img src="docs/screenshots/home.png" alt="DueDay 首页" width="220"> | <img src="docs/screenshots/bills.png" alt="DueDay 账单计划" width="220"> |
+
+| 账单日历 | 账单统计 |
+| --- | --- |
+| <img src="docs/screenshots/calendar.png" alt="DueDay 账单日历" width="220"> | <img src="docs/screenshots/stats.png" alt="DueDay 账单统计" width="220"> |
+
+| 新增账单 |
+| --- |
+| <img src="docs/screenshots/bill-form.png" alt="DueDay 新增账单" width="220"> |
+
 ## 产品方向
 
 DueDay 只聚焦一个问题：**下一笔需要我处理的付款是什么？**
@@ -110,4 +126,4 @@ iOS 开发需要安装 Xcode 和至少一个 iOS Simulator Runtime。当前项�
 
 ## License
 
-许可证协议待定。
+[MIT License](LICENSE)

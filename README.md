@@ -22,6 +22,22 @@ The current release focuses on validating the iOS experience, information archit
 - Monthly statistics, category distribution, and six-month projection.
 - UI placeholders for local notifications, cloud sync, and data export.
 
+## Screenshots
+
+Captured from the iPhone 17 Pro Simulator running iOS 26.5.
+
+| Home | Bill plans |
+| --- | --- |
+| <img src="docs/screenshots/home.png" alt="DueDay home screen" width="220"> | <img src="docs/screenshots/bills.png" alt="DueDay bill plans screen" width="220"> |
+
+| Calendar | Statistics |
+| --- | --- |
+| <img src="docs/screenshots/calendar.png" alt="DueDay calendar screen" width="220"> | <img src="docs/screenshots/stats.png" alt="DueDay statistics screen" width="220"> |
+
+| Create a bill plan |
+| --- |
+| <img src="docs/screenshots/bill-form.png" alt="DueDay create bill plan screen" width="220"> |
+
 ## Product direction
 
 DueDay is built around one question: **what payment needs my attention next?**
@@ -110,4 +126,4 @@ Early-stage personal-use prototype. The UI and interaction model are still evolv
 
 ## License
 
-License to be decided.
+[MIT License](LICENSE)
