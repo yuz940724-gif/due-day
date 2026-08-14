@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
-import '../../domain/bill_plan.dart';
+import '../../domain/billing_plan.dart';
+import '../../domain/period_status.dart';
 import '../../shared/widgets/bill_visuals.dart';
 import '../../shared/widgets/status_pill.dart';
 import '../../state/bill_scope.dart';
+import '../../state/billing_view.dart';
 import 'bill_form_screen.dart';
 
 class BillDetailScreen extends StatelessWidget {
@@ -13,18 +15,18 @@ class BillDetailScreen extends StatelessWidget {
 
   final String planId;
 
-  Future<void> _edit(BuildContext context, BillPlan plan) async {
+  Future<void> _edit(BuildContext context, BillingPlan plan) async {
     await Navigator.of(
       context,
     ).push<bool>(MaterialPageRoute(builder: (_) => BillFormScreen(plan: plan)));
   }
 
-  Future<void> _delete(BuildContext context, BillPlan plan) async {
+  Future<void> _archive(BuildContext context, BillingPlan plan) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('删除这项账单？'),
-        content: Text('“${plan.title}”将从当前列表移除。正式接口接入后，历史已还记录仍会保留。'),
+        title: const Text('归档这项计划？'),
+        content: const Text('既有账期和已还记录会保留；归档后不再生成新的待还账期。之后仍可在“已归档”筛选中恢复。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -32,33 +34,47 @@ class BillDetailScreen extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
-            child: const Text('删除'),
+            child: const Text('归档'),
           ),
         ],
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    final deleted = await BillScope.of(context).delete(plan.id);
-    if (context.mounted && deleted) Navigator.of(context).pop();
+    final updated = await BillScope.of(context)
+        .updatePlanStatus(plan.id, PlanStatus.archived);
+    if (!context.mounted || updated == null) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('计划已归档，可从“已归档”中恢复')));
   }
 
-  Future<void> _togglePaid(BuildContext context, BillPlan plan) async {
+  Future<void> _changePlanStatus(
+    BuildContext context,
+    BillingPlan plan,
+    PlanStatus status,
+  ) async {
     final updated = await BillScope.of(context)
-        .setPaid(plan.id, paid: !plan.isPaid);
+        .updatePlanStatus(plan.id, status);
     if (!context.mounted || updated == null) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(updated.isPaid ? '已标记完成' : '已恢复为待支付')),
+      SnackBar(content: Text(status == PlanStatus.active ? '计划已恢复' : '计划已暂停')),
     );
   }
 
-  Future<void> _togglePaused(BuildContext context, BillPlan plan) async {
+  Future<void> _changePeriodStatus(
+    BuildContext context,
+    BillingEntry entry,
+    PeriodStatus status,
+  ) async {
     final updated = await BillScope.of(context)
-        .setPaused(plan.id, paused: !plan.isPaused);
+        .updatePeriodStatus(entry.period.identity, status: status);
     if (!context.mounted || updated == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(updated.isPaused ? '计划已暂停' : '计划已恢复')),
-    );
+    final message = switch (status) {
+      PeriodStatus.paid => '已标记完成',
+      PeriodStatus.pending => '已恢复为待支付',
+      PeriodStatus.skipped => '已跳过本期',
+    };
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -72,7 +88,13 @@ class BillDetailScreen extends StatelessWidget {
       );
     }
 
+    final entries = store.planEntriesFor(plan.id, includeArchived: true);
+    final current = entries.isEmpty ? null : entries.first;
     final categoryColor = colorForCategory(plan.category);
+    final headerStatus = current?.status ?? _statusForPlan(plan.status);
+    final amount = current?.period.amountInCents ?? plan.amountInCents;
+    final dueDate = current?.period.dueDate ?? plan.firstDueDate;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('账单详情'),
@@ -85,19 +107,20 @@ class BillDetailScreen extends StatelessWidget {
           PopupMenuButton<String>(
             tooltip: '更多操作',
             onSelected: (value) {
-              if (value == 'delete') _delete(context, plan);
+              if (value == 'archive') _archive(context, plan);
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_outline, color: AppColors.danger),
-                    SizedBox(width: 10),
-                    Text('删除账单'),
-                  ],
+            itemBuilder: (_) => [
+              if (plan.status != PlanStatus.archived)
+                const PopupMenuItem(
+                  value: 'archive',
+                  child: Row(
+                    children: [
+                      Icon(Icons.archive_outlined),
+                      SizedBox(width: 10),
+                      Text('归档计划'),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
         ],
@@ -149,12 +172,12 @@ class BillDetailScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    StatusPill(status: plan.status),
+                    StatusPill(status: headerStatus),
                   ],
                 ),
                 const SizedBox(height: 30),
                 Text(
-                  formatCurrency(plan.amountInCents),
+                  formatCurrency(amount),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                     fontFeatures: const [FontFeature.tabularFigures()],
@@ -162,36 +185,45 @@ class BillDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 7),
                 Text(
-                  plan.amountPending
+                  amount == null
                       ? '本期金额尚未确认'
-                      : '${formatShortDate(plan.dueDate)} · ${relativeDueLabel(plan.dueDate)}',
+                      : '${formatShortDate(dueDate)} · ${relativeDueLabel(dueDate, now: store.today)}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: plan.status == BillStatus.overdue
+                    color: headerStatus == BillingEntryStatus.overdue
                         ? AppColors.danger
                         : AppColors.inkMuted,
                   ),
                 ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: plan.isPaid
-                      ? OutlinedButton.icon(
-                          onPressed: () => _togglePaid(context, plan),
-                          icon: const Icon(Icons.undo_rounded),
-                          label: const Text('恢复为待支付'),
-                        )
-                      : FilledButton.icon(
-                          onPressed: plan.isPaused
-                              ? null
-                              : () => _togglePaid(context, plan),
-                          icon: const Icon(Icons.check_rounded),
-                          label: const Text('标记已完成'),
-                        ),
-                ),
+                if (current != null) ...[
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: _periodActionButton(
+                      context,
+                      current,
+                      onChanged: (status) =>
+                          _changePeriodStatus(context, current, status),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 26),
+          Text('账期记录', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 10),
+          if (entries.isEmpty)
+            const _DetailEmpty(message: '还没有生成账期')
+          else
+            for (final entry in entries) ...[
+              _PeriodCard(
+                entry: entry,
+                onChanged: (status) =>
+                    _changePeriodStatus(context, entry, status),
+              ),
+              const SizedBox(height: 10),
+            ],
+          const SizedBox(height: 16),
           Text('付款安排', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 10),
           Container(
@@ -205,8 +237,7 @@ class BillDetailScreen extends StatelessWidget {
               children: [
                 _InfoRow(
                   label: '下一次到期',
-                  value:
-                      '${formatDate(plan.dueDate)} ${formatWeekday(plan.dueDate)}',
+                  value: '${formatDate(dueDate)} ${formatWeekday(dueDate)}',
                 ),
                 _InfoRow(label: '重复周期', value: plan.cycle.label),
                 _InfoRow(
@@ -215,20 +246,11 @@ class BillDetailScreen extends StatelessWidget {
                 ),
                 if (plan.accountSuffix.isNotEmpty)
                   _InfoRow(label: '账户尾号', value: plan.accountSuffix),
-                if (plan.currentInstallment != null &&
-                    plan.totalInstallments != null)
-                  _InfoRow(
-                    label: '还款期数',
-                    value:
-                        '第 ${plan.currentInstallment} / ${plan.totalInstallments} 期',
-                    showDivider: false,
-                  )
-                else
-                  _InfoRow(
-                    label: '计划状态',
-                    value: plan.isPaused ? '暂停生成未来账单' : '正常',
-                    showDivider: false,
-                  ),
+                _InfoRow(
+                  label: '计划状态',
+                  value: plan.status.label,
+                  showDivider: false,
+                ),
               ],
             ),
           ),
@@ -262,7 +284,7 @@ class BillDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '每天 ${plan.reminderHour.toString().padLeft(2, '0')}:00 · 本地通知接口待接入',
+                        '每天 ${plan.reminderHour.toString().padLeft(2, '0')}:00 · 按系统通知权限发送',
                         style: Theme.of(context).textTheme.bodyMedium
                             ?.copyWith(color: AppColors.accent),
                       ),
@@ -286,17 +308,151 @@ class BillDetailScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => _togglePaused(context, plan),
+              onPressed: plan.status == PlanStatus.archived
+                  ? () => _changePlanStatus(context, plan, PlanStatus.active)
+                  : plan.status == PlanStatus.paused
+                  ? () => _changePlanStatus(context, plan, PlanStatus.active)
+                  : () => _changePlanStatus(context, plan, PlanStatus.paused),
               icon: Icon(
-                plan.isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                plan.status == PlanStatus.active
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
               ),
-              label: Text(plan.isPaused ? '恢复这项计划' : '暂停这项计划'),
+              label: Text(
+                plan.status == PlanStatus.active ? '暂停这项计划' : '恢复这项计划',
+              ),
             ),
           ),
+          if (plan.status == PlanStatus.archived) ...[
+            const SizedBox(height: 8),
+            Text(
+              '计划已归档，历史账期仍保留；恢复后会继续生成窗口内的新账期。',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.inkMuted),
+            ),
+          ],
         ],
       ),
     );
   }
+
+  Widget _periodActionButton(
+    BuildContext context,
+    BillingEntry entry, {
+    required ValueChanged<PeriodStatus> onChanged,
+  }) {
+    if (entry.isPaid) {
+      return OutlinedButton.icon(
+        onPressed: () => onChanged(PeriodStatus.pending),
+        icon: const Icon(Icons.undo_rounded),
+        label: const Text('恢复为待支付'),
+      );
+    }
+    if (entry.isSkipped) {
+      return OutlinedButton.icon(
+        onPressed: () => onChanged(PeriodStatus.pending),
+        icon: const Icon(Icons.undo_rounded),
+        label: const Text('恢复本期'),
+      );
+    }
+    return FilledButton.icon(
+      onPressed: entry.isActionable ? () => onChanged(PeriodStatus.paid) : null,
+      icon: const Icon(Icons.check_rounded),
+      label: Text(entry.isActionable ? '标记已完成' : '恢复计划后可操作'),
+    );
+  }
+
+  BillingEntryStatus _statusForPlan(PlanStatus status) => switch (status) {
+    PlanStatus.active => BillingEntryStatus.pending,
+    PlanStatus.paused => BillingEntryStatus.paused,
+    PlanStatus.archived => BillingEntryStatus.archived,
+  };
+}
+
+class _PeriodCard extends StatelessWidget {
+  const _PeriodCard({required this.entry, required this.onChanged});
+
+  final BillingEntry entry;
+  final ValueChanged<PeriodStatus> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 12, 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '第 ${entry.period.sequence} 期 · ${formatShortDate(entry.dueDate)}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  formatCurrency(entry.period.amountInCents),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: AppColors.inkMuted),
+                ),
+              ],
+            ),
+          ),
+          StatusPill(status: entry.status),
+          if (entry.isActionable || entry.isPaid || entry.isSkipped)
+            PopupMenuButton<PeriodStatus>(
+              tooltip: '账期操作',
+              onSelected: onChanged,
+              itemBuilder: (_) => [
+                if (entry.isActionable)
+                  const PopupMenuItem(
+                    value: PeriodStatus.paid,
+                    child: Text('标记已完成'),
+                  ),
+                if (entry.isPaid || entry.isSkipped)
+                  const PopupMenuItem(
+                    value: PeriodStatus.pending,
+                    child: Text('恢复待支付'),
+                  ),
+                if (entry.isActionable)
+                  const PopupMenuItem(
+                    value: PeriodStatus.skipped,
+                    child: Text('跳过本期'),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailEmpty extends StatelessWidget {
+  const _DetailEmpty({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: AppColors.divider),
+    ),
+    child: Text(
+      message,
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.bodyMedium
+          ?.copyWith(color: AppColors.inkMuted),
+    ),
+  );
 }
 
 class _InfoRow extends StatelessWidget {

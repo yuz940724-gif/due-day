@@ -3,8 +3,10 @@ import 'bill_repository.dart';
 
 /// 真实后端接入占位。
 ///
-/// 当前 UI 使用 [MockBillRepository]。后续登录和 RuoYi app-api 就绪后，
-/// 将依赖注入切换到本类即可，页面层不需要改动。
+/// 远程同步的未来占位，不是当前生产数据源。
+///
+/// 当前 UI 使用本地 [BillingRepository] / Drift SQLite；后续登录和
+/// RuoYi app-api 就绪后，再单独设计同步和冲突策略。
 class RemoteBillRepository implements BillRepository {
   @override
   Future<List<BillPlan>> fetchPlans() {

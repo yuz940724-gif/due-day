@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
-import '../../domain/bill_plan.dart';
+import '../../domain/period_status.dart';
+import '../../state/billing_view.dart';
 import '../../shared/widgets/bill_list_tile.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/pressable_scale.dart';
@@ -17,9 +18,11 @@ class HomeScreen extends StatelessWidget {
 
   final VoidCallback onAddBill;
 
-  void _openPlan(BuildContext context, BillPlan plan) {
+  void _openPlan(BuildContext context, BillingEntry entry) {
     Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => BillDetailScreen(planId: plan.id)),
+      MaterialPageRoute(
+        builder: (_) => BillDetailScreen(planId: entry.plan.id),
+      ),
     );
   }
 
@@ -31,7 +34,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = BillScope.of(context);
-    final now = DateTime.now();
+    final now = store.today;
     final greeting = switch (now.hour) {
       < 11 => '早上好',
       < 14 => '中午好',
@@ -97,18 +100,18 @@ class HomeScreen extends StatelessWidget {
                       onAction: onAddBill,
                     )
                   else ...[
-                    if (store.nextPlan case final plan?)
+                    if (store.nextEntry case final entry?)
                       _NextPaymentPanel(
-                        plan: plan,
-                        onOpen: () => _openPlan(context, plan),
+                        entry: entry,
+                        onOpen: () => _openPlan(context, entry),
                         onPaid: () async {
-                          final updated = await store.setPaid(
-                            plan.id,
-                            paid: true,
+                          final updated = await store.updatePeriodStatus(
+                            entry.period.identity,
+                            status: PeriodStatus.paid,
                           );
                           if (context.mounted && updated != null) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('${plan.title} 已标记完成')),
+                              SnackBar(content: Text('${entry.title} 已标记完成')),
                             );
                           }
                         },
@@ -137,20 +140,12 @@ class HomeScreen extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Column(
                           children: [
-                            for (
-                              var index = 0;
-                              index < store.upcomingPlans.take(4).length;
-                              index++
-                            )
+                            for (final entry in store.upcomingEntries.take(4))
                               BillListTile(
-                                plan: store.upcomingPlans[index],
+                                entry: entry,
                                 showDivider:
-                                    index !=
-                                    store.upcomingPlans.take(4).length - 1,
-                                onTap: () => _openPlan(
-                                  context,
-                                  store.upcomingPlans[index],
-                                ),
+                                    entry != store.upcomingEntries.take(4).last,
+                                onTap: () => _openPlan(context, entry),
                               ),
                           ],
                         ),
@@ -169,21 +164,21 @@ class HomeScreen extends StatelessWidget {
 
 class _NextPaymentPanel extends StatelessWidget {
   const _NextPaymentPanel({
-    required this.plan,
+    required this.entry,
     required this.onOpen,
     required this.onPaid,
   });
 
-  final BillPlan plan;
+  final BillingEntry entry;
   final VoidCallback onOpen;
   final VoidCallback onPaid;
 
   @override
   Widget build(BuildContext context) {
-    final overdue = plan.status == BillStatus.overdue;
+    final overdue = entry.status == BillingEntryStatus.overdue;
     return PressableScale(
       onTap: onOpen,
-      semanticLabel: '下一笔，${plan.title}',
+      semanticLabel: '下一笔，${entry.title}',
       child: Container(
         padding: const EdgeInsets.fromLTRB(22, 21, 22, 20),
         decoration: BoxDecoration(
@@ -220,7 +215,7 @@ class _NextPaymentPanel extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    relativeDueLabel(plan.dueDate),
+                    relativeDueLabel(entry.dueDate, now: entry.today),
                     style: Theme.of(context).textTheme.labelMedium
                         ?.copyWith(color: AppColors.white),
                   ),
@@ -229,7 +224,7 @@ class _NextPaymentPanel extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              formatCurrency(plan.amountInCents),
+              formatCurrency(entry.period.amountInCents),
               style: Theme.of(context).textTheme.displaySmall?.copyWith(
                 color: AppColors.white,
                 fontFeatures: const [FontFeature.tabularFigures()],
@@ -237,7 +232,7 @@ class _NextPaymentPanel extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${plan.title} · ${formatShortDate(plan.dueDate)}',
+              '${entry.title} · ${formatShortDate(entry.dueDate)}',
               style: Theme.of(context).textTheme.bodyLarge
                   ?.copyWith(color: AppColors.white.withValues(alpha: 0.78)),
             ),

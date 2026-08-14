@@ -3,14 +3,14 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
-import '../../domain/bill_plan.dart';
+import '../../domain/billing_plan.dart';
 import '../../shared/widgets/bill_visuals.dart';
 import '../../state/bill_scope.dart';
 
 class BillFormScreen extends StatefulWidget {
   const BillFormScreen({this.plan, super.key});
 
-  final BillPlan? plan;
+  final BillingPlan? plan;
 
   @override
   State<BillFormScreen> createState() => _BillFormScreenState();
@@ -22,6 +22,7 @@ class _BillFormScreenState extends State<BillFormScreen> {
   late final TextEditingController _institutionController;
   late final TextEditingController _suffixController;
   late final TextEditingController _amountController;
+  late final TextEditingController _totalInstallmentsController;
   late final TextEditingController _noteController;
 
   late BillCategory _category;
@@ -52,14 +53,18 @@ class _BillFormScreenState extends State<BillFormScreen> {
               withSymbol: false,
             ).replaceAll(',', ''),
     );
+    _totalInstallmentsController = TextEditingController(
+      text: plan?.totalInstallments?.toString() ?? '',
+    );
     _noteController = TextEditingController(text: plan?.note ?? '');
     _category = plan?.category ?? BillCategory.creditCard;
     _cycle = plan?.cycle ?? BillingCycle.monthly;
-    _dueDate = plan?.dueDate ?? DateTime.now().add(const Duration(days: 7));
+    _dueDate =
+        plan?.firstDueDate ?? DateTime.now().add(const Duration(days: 7));
     _reminderDays = {...?plan?.reminderDays};
     if (_reminderDays.isEmpty) _reminderDays = {3, 1};
     _reminderHour = plan?.reminderHour ?? 9;
-    _amountUnknown = plan?.amountPending ?? false;
+    _amountUnknown = plan?.amountInCents == null;
     _autoDebit = plan?.isAutoDebit ?? false;
   }
 
@@ -69,6 +74,7 @@ class _BillFormScreenState extends State<BillFormScreen> {
     _institutionController.dispose();
     _suffixController.dispose();
     _amountController.dispose();
+    _totalInstallmentsController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -130,27 +136,41 @@ class _BillFormScreenState extends State<BillFormScreen> {
           .showSnackBar(const SnackBar(content: Text('请输入正确的金额，最多保留两位小数')));
       return;
     }
+    int? totalInstallments;
+    if (_cycle != BillingCycle.once &&
+        _totalInstallmentsController.text.trim().isNotEmpty) {
+      totalInstallments = int.tryParse(
+        _totalInstallmentsController.text.trim(),
+      );
+      if (totalInstallments == null || totalInstallments <= 0) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('总期数请输入正整数，留空表示持续生成')));
+        return;
+      }
+    }
 
     setState(() => _saving = true);
-    final draft = BillDraft(
+    final store = BillScope.of(context);
+    final now = DateTime.now();
+    final existing = widget.plan;
+    final plan = BillingPlan(
+      id: existing?.id ?? 'plan-${now.microsecondsSinceEpoch}',
       title: _titleController.text.trim(),
       category: _category,
       institution: _institutionController.text.trim(),
       accountSuffix: _suffixController.text.trim(),
       amountInCents: amount,
       cycle: _cycle,
-      dueDate: _dueDate,
+      firstDueDate: _dueDate,
       reminderDays: _reminderDays.toList()..sort((a, b) => b.compareTo(a)),
       reminderHour: _reminderHour,
+      status: existing?.status ?? PlanStatus.active,
       isAutoDebit: _autoDebit,
       note: _noteController.text.trim(),
-      currentInstallment: widget.plan?.currentInstallment,
-      totalInstallments: widget.plan?.totalInstallments,
+      totalInstallments: totalInstallments,
+      createdAt: existing?.createdAt ?? now,
     );
-    final store = BillScope.of(context);
-    final result = _editing
-        ? await store.update(widget.plan!.id, draft)
-        : await store.create(draft);
+    final result = await store.savePlan(plan);
     if (!mounted) return;
     setState(() => _saving = false);
     if (result != null) {
@@ -288,6 +308,18 @@ class _BillFormScreenState extends State<BillFormScreen> {
                 if (cycle != null) setState(() => _cycle = cycle);
               },
             ),
+            if (_cycle != BillingCycle.once) ...[
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _totalInstallmentsController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(
+                  labelText: '总期数（选填）',
+                  hintText: '留空表示持续生成',
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             _PickerTile(
               icon: Icons.event_outlined,

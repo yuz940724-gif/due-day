@@ -20,6 +20,12 @@ String formatCurrency(int? amountInCents, {bool withSymbol = true}) {
   return '$prefix$symbol$buffer$decimal';
 }
 
+String formatAmountWithUnknown(int knownAmountInCents, int unknownCount) {
+  if (unknownCount <= 0) return formatCurrency(knownAmountInCents);
+  if (knownAmountInCents == 0) return '金额待补充';
+  return '${formatCurrency(knownAmountInCents)} + $unknownCount 笔待补充';
+}
+
 String formatMonth(DateTime date) => '${date.year}年${date.month}月';
 
 String formatDate(DateTime date) => '${date.year}年${date.month}月${date.day}日';

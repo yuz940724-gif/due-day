@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
-import '../../domain/bill_plan.dart';
 import '../../shared/widgets/bill_list_tile.dart';
 import '../../shared/widgets/bill_visuals.dart';
 import '../../shared/widgets/pressable_scale.dart';
 import '../../state/bill_scope.dart';
+import '../../state/billing_view.dart';
 import '../bills/bill_detail_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
@@ -21,13 +21,16 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   late DateTime _displayedMonth;
   late DateTime _selectedDate;
+  bool _initialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    final today = dateOnly(DateTime.now());
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+    final today = BillScope.of(context).today;
     _displayedMonth = DateTime(today.year, today.month);
     _selectedDate = today;
+    _initialized = true;
   }
 
   void _changeMonth(int delta) {
@@ -49,7 +52,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final store = BillScope.of(context);
-    final selectedPlans = store.plansOn(_selectedDate);
+    final selectedEntries = store.entriesOn(_selectedDate);
+    final window = store.materializationWindow;
+    final previousMonth = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month - 1,
+      1,
+    );
+    final nextMonth = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month + 1,
+      1,
+    );
+    final firstMonth = DateTime(window.from.year, window.from.month);
+    final lastMonth = DateTime(window.to.year, window.to.month);
     const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 
     return SafeArea(
@@ -80,7 +96,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       Row(
                         children: [
                           IconButton(
-                            onPressed: () => _changeMonth(-1),
+                            onPressed: previousMonth.isBefore(firstMonth)
+                                ? null
+                                : () => _changeMonth(-1),
                             icon: const Icon(Icons.chevron_left_rounded),
                             tooltip: '上个月',
                           ),
@@ -92,7 +110,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ),
                           ),
                           IconButton(
-                            onPressed: () => _changeMonth(1),
+                            onPressed: nextMonth.isAfter(lastMonth)
+                                ? null
+                                : () => _changeMonth(1),
                             icon: const Icon(Icons.chevron_right_rounded),
                             tooltip: '下个月',
                           ),
@@ -129,8 +149,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               inDisplayedMonth:
                                   date.month == _displayedMonth.month,
                               selected: isSameDay(date, _selectedDate),
-                              today: isSameDay(date, DateTime.now()),
-                              plans: store.plansOn(date),
+                              today: isSameDay(date, store.today),
+                              entries: store.entriesOn(date),
                               onTap: () => setState(() => _selectedDate = date),
                             ),
                         ],
@@ -152,16 +172,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            selectedPlans.isEmpty
+                            selectedEntries.isEmpty
                                 ? '当天没有到期账单'
-                                : '共 ${selectedPlans.length} 笔到期',
+                                : '共 ${selectedEntries.length} 笔账期',
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(color: AppColors.inkMuted),
                           ),
                         ],
                       ),
                     ),
-                    if (selectedPlans.isEmpty)
+                    if (selectedEntries.isEmpty)
                       TextButton.icon(
                         onPressed: widget.onAddBill,
                         icon: const Icon(Icons.add_rounded, size: 18),
@@ -174,7 +194,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   duration: const Duration(milliseconds: 180),
                   switchInCurve: Curves.easeOutCubic,
                   switchOutCurve: Curves.easeOutCubic,
-                  child: selectedPlans.isEmpty
+                  child: selectedEntries.isEmpty
                       ? Container(
                           key: ValueKey('empty-$_selectedDate'),
                           padding: const EdgeInsets.symmetric(
@@ -215,18 +235,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             children: [
                               for (
                                 var index = 0;
-                                index < selectedPlans.length;
+                                index < selectedEntries.length;
                                 index++
                               )
                                 BillListTile(
-                                  plan: selectedPlans[index],
+                                  entry: selectedEntries[index],
                                   showDivider:
-                                      index != selectedPlans.length - 1,
+                                      index != selectedEntries.length - 1,
                                   onTap: () {
                                     Navigator.of(context).push<void>(
                                       MaterialPageRoute(
                                         builder: (_) => BillDetailScreen(
-                                          planId: selectedPlans[index].id,
+                                          planId:
+                                              selectedEntries[index].plan.id,
                                         ),
                                       ),
                                     );
@@ -251,7 +272,7 @@ class _CalendarDay extends StatelessWidget {
     required this.inDisplayedMonth,
     required this.selected,
     required this.today,
-    required this.plans,
+    required this.entries,
     required this.onTap,
   });
 
@@ -259,7 +280,7 @@ class _CalendarDay extends StatelessWidget {
   final bool inDisplayedMonth;
   final bool selected;
   final bool today;
-  final List<BillPlan> plans;
+  final List<BillingEntry> entries;
   final VoidCallback onTap;
 
   @override
@@ -271,7 +292,7 @@ class _CalendarDay extends StatelessWidget {
         : AppColors.inkMuted.withValues(alpha: 0.45);
     return PressableScale(
       onTap: onTap,
-      semanticLabel: '${date.month}月${date.day}日，${plans.length}笔账单',
+      semanticLabel: '${date.month}月${date.day}日，${entries.length}笔账期',
       scale: 0.94,
       child: Container(
         padding: const EdgeInsets.only(top: 7),
@@ -294,18 +315,18 @@ class _CalendarDay extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 5),
-            if (plans.isNotEmpty)
+            if (entries.isNotEmpty)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  for (final plan in plans.take(3)) ...[
+                  for (final entry in entries.take(3)) ...[
                     Container(
                       width: 4,
                       height: 4,
                       decoration: BoxDecoration(
                         color: selected
                             ? AppColors.white
-                            : colorForStatus(plan.status),
+                            : colorForStatus(entry.status),
                         shape: BoxShape.circle,
                       ),
                     ),

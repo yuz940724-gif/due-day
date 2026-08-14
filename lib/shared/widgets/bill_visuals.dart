@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../domain/bill_plan.dart';
+import '../../state/billing_view.dart';
 
 IconData iconForCategory(BillCategory category) => switch (category) {
   BillCategory.creditCard => Icons.credit_card_rounded,
@@ -21,16 +22,20 @@ Color colorForCategory(BillCategory category) => switch (category) {
   BillCategory.other => AppColors.warning,
 };
 
-Color colorForStatus(BillStatus status) => switch (status) {
-  BillStatus.pending => AppColors.accent,
-  BillStatus.paid => AppColors.inkMuted,
-  BillStatus.overdue => AppColors.danger,
-  BillStatus.paused => AppColors.warning,
+Color colorForStatus(BillingEntryStatus status) => switch (status) {
+  BillingEntryStatus.pending => AppColors.accent,
+  BillingEntryStatus.paid => AppColors.inkMuted,
+  BillingEntryStatus.overdue => AppColors.danger,
+  BillingEntryStatus.paused => AppColors.warning,
+  BillingEntryStatus.skipped => AppColors.inkMuted,
+  BillingEntryStatus.archived => AppColors.inkMuted,
 };
 
-Color softColorForStatus(BillStatus status) => switch (status) {
-  BillStatus.pending => AppColors.accentSoft,
-  BillStatus.paid => AppColors.surfaceMuted,
-  BillStatus.overdue => AppColors.dangerSoft,
-  BillStatus.paused => AppColors.warningSoft,
+Color softColorForStatus(BillingEntryStatus status) => switch (status) {
+  BillingEntryStatus.pending => AppColors.accentSoft,
+  BillingEntryStatus.paid => AppColors.surfaceMuted,
+  BillingEntryStatus.overdue => AppColors.dangerSoft,
+  BillingEntryStatus.paused => AppColors.warningSoft,
+  BillingEntryStatus.skipped => AppColors.surfaceMuted,
+  BillingEntryStatus.archived => AppColors.surfaceMuted,
 };

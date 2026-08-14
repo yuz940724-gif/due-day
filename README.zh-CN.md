@@ -1,82 +1,100 @@
 # DueDay · 个人账单还款助手
 
-> 一款以到期日为核心、面向 iOS 的个人账单还款提醒应用，使用 Flutter 构建。
+> 一款原生、纯本地、围绕固定账单到期日设计的 iOS 还款提醒助手。
 
 [English](README.md)
 
 DueDay 用来帮助用户提前管理信用卡、贷款、房贷、保险、会员订阅等固定支付事项。它不是传统记账软件，而是一个围绕“下一笔什么时候需要处理”设计的账单还款提醒助手。
 
-当前版本优先验证 iOS 端的页面、信息结构和核心交互，使用本地 Mock 数据运行。登录、真实接口、本地持久化和通知能力暂时保留为 TODO，后续接入 RuoYi `app-api`。
+当前主版本已经切换为 SwiftUI + SwiftData 原生 iOS App。应用无需登录，账单数据只保存在本机，不依赖后端。原 Flutter 实现继续保留在仓库中，作为兼容和数据迁移参考。
 
 ## 当前能力
 
-- 启动后直接进入应用，不包含登录流程。
-- 首页展示下一笔账单、逾期处理、本月进度和近期账单。
-- 日历视图按到期日查看账单计划。
-- 账单列表支持全部、待处理、已完成和已暂停筛选。
-- 新增、编辑周期账单计划。
-- 支持信用卡、房贷、贷款、保险、会员订阅和其他固定支付类型。
-- 配置金额、周期、下次到期日、自动扣款和提前提醒天数。
-- 标记账单已完成，也可以恢复为待支付。
-- 账单详情支持暂停、恢复、编辑和删除。
-- 查看月度完成率、类别分布和未来六个月预测。
-- 本地通知、云端同步和数据导出入口保留交互占位。
+- 首页聚焦下一笔支付、逾期事项、本月进度和近期账单。
+- 日历和账单计划视图，支持待支付、已完成、已暂停和已归档状态。
+- 新增、编辑信用卡、房贷、贷款、保险、会员订阅及其他固定支付计划。
+- 支持每月、每季度、每年和分期计划，也可以配置总期数。
+- 未知金额单独处理，不会被当作 0 元计入统计。
+- 可对具体账期标记已还、恢复待支付或跳过，也可暂停或归档整个计划。
+- 已接入 iOS 本地通知权限、稳定重排、提醒设置和测试通知。
+- 支持本地 JSON 导出和二次确认后的完整替换恢复，并兼容 Flutter v1 备份。
+- 支持浅色/深色模式、动态字体，以及 iOS 26 系统材质与可用时的 Liquid Glass 效果。
 
 ## 页面截图
 
-以下截图来自运行 iOS 26.5 的 iPhone 17 Pro 模拟器。
+以下截图来自运行 iOS 26.5 的 iPhone 17 模拟器，展示的是 SwiftUI 原生版本。
 
-| 首页 | 账单计划 |
-| --- | --- |
-| <img src="docs/screenshots/home.png" alt="DueDay 首页" width="220"> | <img src="docs/screenshots/bills.png" alt="DueDay 账单计划" width="220"> |
+| 首页 | 新增账单 | 账单详情 |
+| --- | --- | --- |
+| <img src="docs/screenshots/native-ios/home.png" alt="DueDay 原生首页" width="220"> | <img src="docs/screenshots/native-ios/bill-form.png" alt="DueDay 原生新增账单" width="220"> | <img src="docs/screenshots/native-ios/bill-detail.png" alt="DueDay 原生账单详情" width="220"> |
 
-| 账单日历 | 账单统计 |
-| --- | --- |
-| <img src="docs/screenshots/calendar.png" alt="DueDay 账单日历" width="220"> | <img src="docs/screenshots/stats.png" alt="DueDay 账单统计" width="220"> |
+| 编辑账单 | 本地通知 | 备份与恢复 |
+| --- | --- | --- |
+| <img src="docs/screenshots/native-ios/bill-edit.png" alt="DueDay 原生编辑账单" width="220"> | <img src="docs/screenshots/native-ios/local-notification.png" alt="DueDay 本地通知横幅" width="220"> | <img src="docs/screenshots/native-ios/backup.png" alt="DueDay 备份与恢复" width="220"> |
 
-| 新增账单 |
-| --- |
-| <img src="docs/screenshots/bill-form.png" alt="DueDay 新增账单" width="220"> |
-
-## 产品方向
+## 产品原则
 
 DueDay 只聚焦一个问题：**下一笔需要我处理的付款是什么？**
 
-产品设计优先考虑：
-
-- 到期提醒和行动处理，而不是复杂的交易记账。
-- 轻量的每日查看，而不是复杂的财务报表。
-- 清晰区分逾期、待支付、已完成和已暂停状态。
-- 先做好本地体验，再逐步接入账号、云同步和跨设备能力。
+- 优先解决到期提醒和行动处理，而不是复杂的交易记账。
+- 强调轻量的每日查看，而不是复杂的财务报表。
+- 清晰区分逾期、待支付、已完成、已跳过、已暂停和已归档状态。
+- 先保证个人账单数据由用户本机掌控，再考虑账号、云同步和商业化能力。
 
 ## 技术栈
 
+### 当前主版本：原生 iOS
+
+- SwiftUI
+- SwiftData
+- UserNotifications
+- 最低支持 iOS 17
+- XCTest 和 XCUITest 原生测试
+
+### 保留的 Flutter 版本
+
 - Flutter / Dart
-- iOS 优先的移动端客户端
-- 当前使用 Mock Repository 提供原型数据
-- 计划后端：基于 RuoYi 分支的 Spring Boot `app-api`
-- 计划数据库：MySQL
-- 计划缓存：Redis
-- 计划任务调度：XXL-JOB
-- 计划通知渠道：第一阶段 iOS 本地通知，后续支持微信订阅消息
+- Drift SQLite
+- 本地通知与 JSON 备份兼容
+
+### 延期的平台能力
+
+- 基于 RuoYi `app-api` 分支的 Spring Boot 后端
+- MySQL、Redis 和 XXL-JOB
+- 登录、云同步、远程账单接口和微信订阅消息
 
 ## 项目结构
 
 ```text
-lib/
-├── core/              # 主题和格式化工具
-├── data/              # Repository 抽象、Mock 数据和接口 TODO
-├── domain/            # 账单计划领域模型
-├── features/          # 应用壳层和产品页面
-├── shared/            # 通用组件
-└── state/             # 内存账单状态
+native-ios/              # 当前主版本：SwiftUI + SwiftData 原生 iOS App
+├── DueDay/              # 应用、领域、本地存储、通知和备份代码
+├── DueDayTests/         # 原生单元测试
+└── DueDayUITests/       # 原生模拟器端到端测试
 
-test/                  # Widget 和状态测试
-tool/                  # 视觉捕获测试和 Golden 截图
-ios/                   # Flutter iOS 宿主工程
+lib/                     # 保留的 Flutter 实现
+test/                    # Flutter 测试
+ios/                     # Flutter iOS 宿主工程
+docs/                    # 产品、迁移、存储、通知和 UI 文档
 ```
 
-## 本地运行
+## 运行原生 iOS 版本
+
+1. 安装 Xcode 和一个 iOS Simulator Runtime。
+2. 打开 [`native-ios/DueDay.xcodeproj`](native-ios/DueDay.xcodeproj)。
+3. 选择一个 iPhone 模拟器，运行 `DueDay` Scheme。
+
+命令行验证：
+
+```bash
+cd native-ios
+xcodebuild -project DueDay.xcodeproj -scheme DueDay \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
+  CODE_SIGNING_ALLOWED=NO test
+```
+
+当前提交的模拟器验收基线是 29 项全部通过：27 项单元测试 + 2 项端到端 UI 测试。主要流程也已在深色模式和无障碍超大动态字体下通过。真机通知、iCloud 文件访问、系统分享、后台投递和锁屏展示仍需要后续人工验收。
+
+## 运行保留的 Flutter 版本
 
 ```bash
 flutter pub get
@@ -84,45 +102,29 @@ flutter test
 flutter run -d <ios-simulator-id>
 ```
 
-iOS 开发需要安装 Xcode 和至少一个 iOS Simulator Runtime。当前项目还没有接入原生 Flutter 插件；后续引入本地通知等插件时再安装 CocoaPods。
+## 本地数据与迁移
 
-## 数据和接口状态
+原生版本使用 SwiftData 将账单计划和账期保存在本机，不会上传账号或账单数据。JSON 备份是本地明文文件，可能包含敏感财务信息，请谨慎保存和分享。
 
-当前原型使用 `MockBillRepository`，数据只保存在内存中，应用重启后会恢复为预置数据。当前不会上传用户账单或账号数据。
-
-后续接入 RuoYi `app-api` 的接口边界已经集中写在 [`lib/data/remote_bill_repository.dart`](lib/data/remote_bill_repository.dart)，包含以下 TODO：
-
-- `GET /app-api/bill/plan/page`
-- `POST /app-api/bill/plan/create`
-- `PUT /app-api/bill/plan/update`
-- `DELETE /app-api/bill/plan/delete`
-- `PUT /app-api/bill/period/mark-paid`
-- `PUT /app-api/bill/period/unmark-paid`
-- `PUT /app-api/bill/plan/update-status`
-
-计划按以下顺序接入：
-
-1. 接入 RuoYi `app-api` 登录和 Token 刷新。
-2. 增加账单计划持久化以及服务端用户数据隔离。
-3. 用远程 Repository 替换 Mock Repository。
-4. 增加 iOS 通知权限申请和本地提醒调度。
-5. 增加同步冲突处理和可选的云端备份。
+可以通过 **我的 → 备份与恢复 → 从文件导入** 恢复 Flutter v1 备份。应用会先校验文件并展示摘要，只有再次确认后才会替换本机数据。实现和测试细节见 [`native-ios/README.md`](native-ios/README.md)。
 
 ## 开发路线
 
-- [x] iOS 首版页面和交互原型
-- [x] 基于 Mock 数据的核心账单操作
-- [x] 日历和数据统计视图
-- [ ] RuoYi `app-api` 登录认证
-- [ ] 账单计划真实接口
-- [ ] 本地数据持久化
-- [ ] iOS 本地通知
-- [ ] 云端同步和冲突处理
-- [ ] Flutter Android 端和微信小程序端
+- [x] SwiftUI 原生 iOS 客户端
+- [x] SwiftData 本地持久化
+- [x] 周期计划和账期完整生命周期
+- [x] 日历、统计、归档和分期流程
+- [x] iOS 本地通知
+- [x] Flutter v1 JSON 备份迁移
+- [x] 模拟器单元测试和端到端验收
+- [ ] iPhone 真机验收
+- [ ] RuoYi `app-api` 登录和远程账单接口
+- [ ] 可选云同步和冲突处理
+- [ ] 微信小程序及其他客户端
 
 ## 项目状态
 
-个人使用的早期原型，页面和交互模型仍会持续调整。
+开源的个人自用 iOS MVP。原生版本已经完成模拟器验收，真机验收按约定暂不开始。
 
 ## License
 

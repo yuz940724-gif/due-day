@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../domain/bill_plan.dart';
+import '../../domain/period_status.dart';
+import '../../domain/plan_status.dart';
 import '../../shared/widgets/bill_visuals.dart';
 import '../../state/bill_scope.dart';
+import '../../state/billing_view.dart';
 
 class InsightsScreen extends StatelessWidget {
   const InsightsScreen({super.key});
@@ -16,19 +19,19 @@ class InsightsScreen extends StatelessWidget {
     final paid = store.monthPaidInCents;
     final progress = total == 0 ? 0.0 : (paid / total).clamp(0.0, 1.0);
     final categoryTotals = <BillCategory, int>{};
-    for (final plan in store.currentMonthPlans) {
-      if (plan.isPaused || plan.amountInCents == null) continue;
+    for (final entry in store.currentMonthEntries) {
+      if (!entry.countsTowardCurrentPressure || entry.amountUnknown) continue;
       categoryTotals.update(
-        plan.category,
-        (value) => value + plan.amountInCents!,
-        ifAbsent: () => plan.amountInCents!,
+        entry.period.category,
+        (value) => value + entry.period.amountInCents!,
+        ifAbsent: () => entry.period.amountInCents!,
       );
     }
     final maxCategory = categoryTotals.values.fold<int>(
       1,
       (max, value) => value > max ? value : max,
     );
-    final forecast = _buildForecast(store.plans);
+    final forecast = _buildForecast(store.allEntries, store.today);
 
     return Scaffold(
       appBar: AppBar(title: const Text('账单统计')),
@@ -36,12 +39,12 @@ class InsightsScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 6, 20, 40),
         children: [
           Text(
-            formatMonth(DateTime.now()),
+            formatMonth(store.today),
             style: Theme.of(context).textTheme.labelLarge,
           ),
           const SizedBox(height: 8),
           Text(
-            formatCurrency(total),
+            formatAmountWithUnknown(total, store.monthUnknownAmountCount),
             style: Theme.of(context).textTheme.displaySmall
                 ?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
           ),
@@ -51,6 +54,14 @@ class InsightsScreen extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium
                 ?.copyWith(color: AppColors.inkMuted),
           ),
+          if (store.monthUnknownAmountCount > 0) ...[
+            const SizedBox(height: 5),
+            Text(
+              '${store.monthUnknownAmountCount} 笔金额未知，未按 0 元计入金额合计',
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.warning),
+            ),
+          ],
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(20),
@@ -186,29 +197,32 @@ class InsightsScreen extends StatelessWidget {
     );
   }
 
-  List<_ForecastValue> _buildForecast(List<BillPlan> plans) {
-    final now = DateTime.now();
+  List<_ForecastValue> _buildForecast(
+    List<BillingEntry> entries,
+    DateTime now,
+  ) {
     return List.generate(6, (index) {
       final month = DateTime(now.year, now.month + index);
       var amount = 0;
-      for (final plan in plans) {
-        if (plan.isPaused || plan.amountInCents == null) continue;
-        final monthDelta =
-            (month.year - plan.dueDate.year) * 12 +
-            month.month -
-            plan.dueDate.month;
-        final included = switch (plan.cycle) {
-          BillingCycle.once =>
-            plan.dueDate.year == month.year &&
-                plan.dueDate.month == month.month,
-          BillingCycle.monthly => monthDelta >= 0,
-          BillingCycle.quarterly => monthDelta >= 0 && monthDelta % 3 == 0,
-          BillingCycle.yearly =>
-            monthDelta >= 0 && plan.dueDate.month == month.month,
-        };
-        if (included) amount += plan.amountInCents!;
+      var unknownCount = 0;
+      for (final entry in entries) {
+        if (entry.plan.status != PlanStatus.active ||
+            entry.dueDate.year != month.year ||
+            entry.dueDate.month != month.month ||
+            entry.period.status == PeriodStatus.skipped) {
+          continue;
+        }
+        if (entry.amountUnknown) {
+          unknownCount++;
+        } else {
+          amount += entry.period.amountInCents!;
+        }
       }
-      return _ForecastValue(month: month, amount: amount);
+      return _ForecastValue(
+        month: month,
+        amount: amount,
+        unknownCount: unknownCount,
+      );
     });
   }
 }
@@ -297,10 +311,15 @@ class _CategoryBar extends StatelessWidget {
 }
 
 class _ForecastValue {
-  const _ForecastValue({required this.month, required this.amount});
+  const _ForecastValue({
+    required this.month,
+    required this.amount,
+    required this.unknownCount,
+  });
 
   final DateTime month;
   final int amount;
+  final int unknownCount;
 }
 
 class _ForecastChart extends StatelessWidget {

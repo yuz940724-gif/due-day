@@ -2,28 +2,29 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
-import '../../domain/bill_plan.dart';
+import '../../state/billing_view.dart';
 import 'bill_visuals.dart';
 import 'pressable_scale.dart';
 
 class BillListTile extends StatelessWidget {
   const BillListTile({
-    required this.plan,
+    required this.entry,
     required this.onTap,
     this.showDivider = true,
     super.key,
   });
 
-  final BillPlan plan;
+  final BillingEntry entry;
   final VoidCallback onTap;
   final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
-    final categoryColor = colorForCategory(plan.category);
+    final categoryColor = colorForCategory(entry.period.category);
     return PressableScale(
       onTap: onTap,
-      semanticLabel: '${plan.title}，${formatCurrency(plan.amountInCents)}',
+      semanticLabel:
+          '${entry.period.title}，${formatCurrency(entry.period.amountInCents)}',
       scale: 0.99,
       child: Container(
         constraints: const BoxConstraints(minHeight: 78),
@@ -43,7 +44,7 @@ class BillListTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
-                iconForCategory(plan.category),
+                iconForCategory(entry.period.category),
                 size: 22,
                 color: categoryColor,
               ),
@@ -54,18 +55,18 @@ class BillListTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    plan.title,
+                    entry.period.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${formatShortDate(plan.dueDate)} · ${relativeDueLabel(plan.dueDate)}',
+                    '${formatShortDate(entry.period.dueDate)} · ${relativeDueLabel(entry.period.dueDate, now: entry.today)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium
-                        ?.copyWith(color: colorForStatus(plan.status)),
+                        ?.copyWith(color: colorForStatus(entry.status)),
                   ),
                 ],
               ),
@@ -75,16 +76,16 @@ class BillListTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  formatCurrency(plan.amountInCents),
+                  formatCurrency(entry.period.amountInCents),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  plan.status.label,
+                  entry.status.label,
                   style: Theme.of(context).textTheme.labelMedium
-                      ?.copyWith(color: colorForStatus(plan.status)),
+                      ?.copyWith(color: colorForStatus(entry.status)),
                 ),
               ],
             ),

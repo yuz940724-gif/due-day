@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../domain/bill_plan.dart';
+import '../../state/billing_view.dart';
 import 'bill_visuals.dart';
 
 class StatusPill extends StatelessWidget {
   const StatusPill({required this.status, super.key});
 
-  final BillStatus status;
+  final BillingEntryStatus status;
 
   @override
   Widget build(BuildContext context) {

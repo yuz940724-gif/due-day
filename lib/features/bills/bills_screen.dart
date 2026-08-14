@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../domain/bill_plan.dart';
+import '../../domain/plan_status.dart';
 import '../../shared/widgets/bill_list_tile.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../../state/bill_scope.dart';
+import '../../state/billing_view.dart';
 import 'bill_detail_screen.dart';
 
-enum _BillFilter { all, upcoming, paid, paused }
+enum _BillFilter { all, upcoming, paid, paused, archived }
 
 extension on _BillFilter {
   String get label => switch (this) {
@@ -15,6 +16,7 @@ extension on _BillFilter {
     _BillFilter.upcoming => '待处理',
     _BillFilter.paid => '已完成',
     _BillFilter.paused => '已暂停',
+    _BillFilter.archived => '已归档',
   };
 }
 
@@ -30,31 +32,36 @@ class BillsScreen extends StatefulWidget {
 class _BillsScreenState extends State<BillsScreen> {
   _BillFilter _filter = _BillFilter.all;
 
-  List<BillPlan> _filtered(List<BillPlan> plans) => switch (_filter) {
-    _BillFilter.all => plans,
+  List<BillingEntry> _filtered(List<BillingEntry> entries) => switch (_filter) {
+    _BillFilter.all => entries,
     _BillFilter.upcoming =>
-      plans
-          .where(
-            (plan) =>
-                plan.status == BillStatus.pending ||
-                plan.status == BillStatus.overdue,
-          )
-          .toList(),
+      entries.where((entry) => entry.isActionable).toList(growable: false),
     _BillFilter.paid =>
-      plans.where((plan) => plan.status == BillStatus.paid).toList(),
+      entries
+          .where((entry) => entry.status == BillingEntryStatus.paid)
+          .toList(growable: false),
     _BillFilter.paused =>
-      plans.where((plan) => plan.status == BillStatus.paused).toList(),
+      entries
+          .where((entry) => entry.status == BillingEntryStatus.paused)
+          .toList(growable: false),
+    _BillFilter.archived =>
+      entries
+          .where((entry) => entry.plan.status == PlanStatus.archived)
+          .toList(growable: false),
   };
 
   @override
   Widget build(BuildContext context) {
     final store = BillScope.of(context);
-    final plans = _filtered(store.sortedPlans);
+    final source = _filter == _BillFilter.archived
+        ? store.entriesFor(includeArchived: true)
+        : store.entries;
+    final entries = _filtered(source);
 
     return SafeArea(
       bottom: false,
       child: RefreshIndicator(
-        onRefresh: store.load,
+        onRefresh: () => store.load(),
         color: AppColors.accent,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -76,7 +83,7 @@ class _BillsScreenState extends State<BillsScreen> {
                             ),
                             const SizedBox(height: 5),
                             Text(
-                              '${store.plans.length} 项固定支付',
+                              '${store.plans.length} 项固定支付 · ${store.entries.length} 个账期',
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(color: AppColors.inkMuted),
                             ),
@@ -103,7 +110,12 @@ class _BillsScreenState extends State<BillsScreen> {
                           ChoiceChip(
                             label: Text(filter.label),
                             selected: _filter == filter,
-                            onSelected: (_) => setState(() => _filter = filter),
+                            onSelected: (_) {
+                              setState(() => _filter = filter);
+                              if (filter == _BillFilter.archived) {
+                                store.setIncludeArchived(true);
+                              }
+                            },
                             showCheckmark: false,
                             selectedColor: AppColors.ink,
                             backgroundColor: AppColors.surface,
@@ -128,7 +140,7 @@ class _BillsScreenState extends State<BillsScreen> {
                         child: CircularProgressIndicator(),
                       ),
                     )
-                  else if (plans.isEmpty)
+                  else if (entries.isEmpty)
                     EmptyState(
                       icon: Icons.filter_alt_off_outlined,
                       title: _filter == _BillFilter.all ? '还没有账单' : '这里暂时为空',
@@ -149,15 +161,15 @@ class _BillsScreenState extends State<BillsScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Column(
                           children: [
-                            for (var index = 0; index < plans.length; index++)
+                            for (var index = 0; index < entries.length; index++)
                               BillListTile(
-                                plan: plans[index],
-                                showDivider: index != plans.length - 1,
+                                entry: entries[index],
+                                showDivider: index != entries.length - 1,
                                 onTap: () {
                                   Navigator.of(context).push<void>(
                                     MaterialPageRoute(
                                       builder: (_) => BillDetailScreen(
-                                        planId: plans[index].id,
+                                        planId: entries[index].plan.id,
                                       ),
                                     ),
                                   );

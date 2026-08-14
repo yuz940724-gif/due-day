@@ -6,6 +6,7 @@ import '../bills/bills_screen.dart';
 import '../calendar/calendar_screen.dart';
 import '../home/home_screen.dart';
 import '../profile/profile_screen.dart';
+import '../../state/bill_scope.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -24,6 +25,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final store = BillScope.of(context);
     final screens = [
       HomeScreen(onAddBill: _openCreateBill),
       CalendarScreen(onAddBill: _openCreateBill),
@@ -34,7 +36,20 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      body: IndexedStack(index: _selectedIndex, children: screens),
+      body: Column(
+        children: [
+          if (store.errorMessage case final message?)
+            _StoreErrorBanner(message: message, onRetry: () => store.load())
+          else if (store.notificationErrorMessage case final message?)
+            _StoreErrorBanner(
+              message: message,
+              onRetry: () => store.retryNotificationSync(),
+            ),
+          Expanded(
+            child: IndexedStack(index: _selectedIndex, children: screens),
+          ),
+        ],
+      ),
       floatingActionButton: AnimatedScale(
         scale: showAddButton ? 1 : 0.92,
         duration: const Duration(milliseconds: 160),
@@ -86,6 +101,39 @@ class _AppShellState extends State<AppShell> {
             label: '我的',
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StoreErrorBanner extends StatelessWidget {
+  const _StoreErrorBanner({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.dangerSoft,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          child: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: AppColors.danger),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(color: AppColors.ink),
+                ),
+              ),
+              TextButton(onPressed: onRetry, child: const Text('重试')),
+            ],
+          ),
+        ),
       ),
     );
   }
