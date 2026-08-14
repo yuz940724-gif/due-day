@@ -147,7 +147,54 @@ struct ProgressBlock: View {
 }
 struct CalendarView: View { @Query(sort:\BillPeriod.dueDate) private var periods:[BillPeriod]; @Binding var add:Bool; @State private var month=CalendarDates.calendar.date(from:CalendarDates.calendar.dateComponents([.year,.month],from:.now))!; @State private var selected=CalendarDates.today; var body: some View { let range=CalendarDates.calendar.range(of:.day,in:.month,for:month)!; return ScrollView { VStack(alignment:.leading,spacing:18) { HStack { Text(BillFormatters.date(month)).font(.title2.bold()).accessibilityIdentifier("screen.calendar");Spacer();Button("‹"){month=CalendarDates.calendar.date(byAdding:.month,value:-1,to:month)!};Button("›"){month=CalendarDates.calendar.date(byAdding:.month,value:1,to:month)!};Button{add=true}label:{Image(systemName:"plus")} }; LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:7)) { ForEach(range,id:\.self) { n in let d=CalendarDates.calendar.date(byAdding:.day,value:n-1,to:month)!; Button(d.formatted(.dateTime.day())){selected=d}.frame(minWidth:40,minHeight:44).background(CalendarDates.calendar.isDate(d,inSameDayAs:selected) ? Color.accent : .clear,in:Circle()).foregroundStyle(CalendarDates.calendar.isDate(d,inSameDayAs:selected) ? .white : Color.ink) } }; Text(BillFormatters.date(selected)).font(.title3.bold()); let chosen=periods.filter{CalendarDates.calendar.isDate($0.dueDate,inSameDayAs:selected)}; if chosen.isEmpty { Text("这一天没有付款安排，可以安心一些。").foregroundStyle(Color.muted) } else { ForEach(chosen){BillRow(period:$0)} } }.padding(20) }.accessibilityIdentifier("tab.calendar").background(Color.canvas).navigationTitle("账单日历").periodDestination(periods: periods) } }
 enum BillFilter:CaseIterable { case all,pending,paid,paused,archived; var label:String{switch self{case .all:"全部";case .pending:"待处理";case .paid:"已完成";case .paused:"已暂停";case .archived:"已归档"}} }
-struct BillsView: View { @Query(sort:\BillingPlan.updatedAt) private var plans:[BillingPlan]; @Query(sort:\BillPeriod.dueDate) private var periods:[BillPeriod]; @Binding var add:Bool; @State private var filter:BillFilter = .all; var body:some View { let rows=BillListSelection.representatives(plans:plans,periods:periods,filter:filter); return List { ScrollView(.horizontal,showsIndicators:false){HStack{ForEach(BillFilter.allCases,id:\.label){f in Button(f.label){filter=f}.buttonStyle(.borderedProminent).tint(filter == f ? .ink:.surface)}}}.listRowSeparator(.hidden).listRowBackground(Color.clear); if rows.isEmpty { EmptyState(title:"这里暂时为空",message:"新增一项固定支付，之后可以在这里管理周期和提醒。"){add=true}.listRowBackground(Color.clear) } else { ForEach(rows){BillRow(period:$0)} } }.accessibilityIdentifier("tab.bills").scrollContentBackground(.hidden).background(Color.canvas).navigationTitle("账单计划").toolbar{Button{add=true}label:{Image(systemName:"plus")}}.periodDestination(periods: periods) } }
+struct BillsView: View {
+    @Query(sort:\BillingPlan.updatedAt) private var plans:[BillingPlan]
+    @Query(sort:\BillPeriod.dueDate) private var periods:[BillPeriod]
+    @Binding var add:Bool
+    @State private var filter:BillFilter = .all
+
+    var body: some View {
+        let rows = BillListSelection.representatives(plans: plans, periods: periods, filter: filter)
+        return List {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(BillFilter.allCases, id: \.label) { option in
+                        Button {
+                            filter = option
+                        } label: {
+                            Text(option.label)
+                                .font(.subheadline.weight(filter == option ? .semibold : .regular))
+                                .foregroundStyle(filter == option ? Color.canvas : Color.ink)
+                                .padding(.horizontal, 14)
+                                .frame(minHeight: 36)
+                                .background(filter == option ? Color.ink : Color.surface, in: Capsule())
+                                .overlay(Capsule().stroke(Color.ink.opacity(0.12), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("bills.filter.\(option.label)")
+                        .accessibilityAddTraits(filter == option ? .isSelected : [])
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+
+            if rows.isEmpty {
+                EmptyState(title:"这里暂时为空", message:"新增一项固定支付，之后可以在这里管理周期和提醒。") { add = true }
+                    .listRowBackground(Color.clear)
+            } else {
+                ForEach(rows) { BillRow(period:$0) }
+            }
+        }
+        .accessibilityIdentifier("tab.bills")
+        .scrollContentBackground(.hidden)
+        .background(Color.canvas)
+        .navigationTitle("账单计划")
+        .toolbar { Button { add = true } label: { Image(systemName:"plus") } }
+        .periodDestination(periods: periods)
+    }
+}
 
 struct BillRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
