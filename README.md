@@ -20,6 +20,12 @@ The primary client is now built with SwiftUI and SwiftData. It opens without log
 - Local JSON export and confirmed full-replacement restore, compatible with Flutter v1 backups.
 - Light/Dark appearance, Dynamic Type layouts, and iOS 26 system materials including Liquid Glass where supported.
 
+## Latest update
+
+- Fixed bill-plan filter chips so unselected groups keep readable text on physical iPhones.
+- Restored the native iOS app icon asset for the home screen.
+- Verified the simulator test suite and installed/launched the updated build on an iPhone 16 Pro.
+
 ## Screenshots
 
 Captured from the native SwiftUI app on the iPhone 17 Simulator running iOS 26.5.
@@ -117,14 +123,14 @@ Flutter v1 backup migration is supported through **Profile → Backup & Restore 
 - [x] iOS local notifications
 - [x] Flutter v1 JSON backup migration
 - [x] Simulator unit and end-to-end acceptance tests
-- [ ] Physical iPhone acceptance testing
+- [ ] Physical iPhone visual acceptance testing
 - [ ] RuoYi `app-api` authentication and remote bill APIs
 - [ ] Optional cloud sync and conflict handling
 - [ ] WeChat Mini Program and other clients
 
 ## Status
 
-Open-source, personal-use iOS MVP. The native version has completed simulator acceptance; physical-device acceptance remains intentionally pending.
+Open-source, personal-use iOS MVP. The native version has completed simulator acceptance and a physical-device install/launch smoke test; final visual acceptance on the device is still pending.
 
 ## License
 
