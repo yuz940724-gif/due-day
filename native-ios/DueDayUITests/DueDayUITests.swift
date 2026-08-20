@@ -50,6 +50,7 @@ final class DueDayUITests: XCTestCase {
     }
 
     func testFullAcceptanceFlow() {
+        XCTAssertTrue(require("home.header").exists)
         XCTAssertTrue(require("empty.state.title").exists)
         XCTAssertTrue(require("empty.addBill").exists)
         saveScreenshot("首页-全屏")
@@ -85,14 +86,27 @@ final class DueDayUITests: XCTestCase {
         app.terminate()
         app.launchArguments = ["--ui-testing"]
         app.launch()
+        XCTAssertTrue(require("home.header", timeout: 10).exists)
         XCTAssertTrue(require("home.next.title", timeout: 10).label.contains("自用版验收账单"))
+        saveScreenshot("首页-有账单")
 
         XCTAssertTrue(require("tab.home").exists)
         app.tabBars.buttons["日历"].tap()
         XCTAssertTrue(require("tab.calendar").exists)
+        let monthCount = require("calendar.month.count")
+        if monthCount.label.contains("本月 0 笔安排") {
+            require("calendar.month.next").tap()
+        }
+        XCTAssertTrue(require("calendar.day.withBills").exists)
+        require("calendar.day.withBills").tap()
+        let selectedCount = require("calendar.selected.count")
+        XCTAssertTrue(selectedCount.label.contains("1 笔安排"), "日历选中日期数量 label：\(selectedCount.label)")
+        saveScreenshot("账单日历")
         app.tabBars.buttons["账单"].tap()
         XCTAssertTrue(require("tab.bills").exists)
+        saveScreenshot("账单计划")
         app.tabBars.buttons["我的"].tap()
+        XCTAssertTrue(require("profile.appearance").exists)
         XCTAssertTrue(require("profile.notifications.permission").exists)
         XCTAssertTrue(scrollToRequire("profile.notifications.sync", maxSwipes: 5).exists)
         XCTAssertTrue(scrollToRequire("profile.notifications.test", maxSwipes: 2).exists)
@@ -100,6 +114,10 @@ final class DueDayUITests: XCTestCase {
         scrollToRequire("profile.backup", maxSwipes: 6).tap()
         XCTAssertTrue(require("backup.export").exists)
         XCTAssertTrue(require("backup.import").exists)
+        saveScreenshot("备份与恢复")
+        app.tabBars.buttons["搜索"].tap()
+        XCTAssertTrue(require("tab.search").exists)
+        XCTAssertTrue(require("search.result").exists)
     }
 
     func testSystemNotificationAndBackupPanels() {
@@ -155,5 +173,15 @@ final class DueDayUITests: XCTestCase {
         XCTAssertTrue(restoreAlert.waitForExistence(timeout: 8), "选择 JSON 后没有出现恢复确认")
         saveScreenshot("JSON恢复确认")
         restoreAlert.buttons["取消"].tap()
+    }
+
+    func testSearchAndAppearanceSurfaces() {
+        app.tabBars.buttons["我的"].tap()
+        XCTAssertTrue(require("profile.appearance").exists)
+
+        app.tabBars.buttons["搜索"].tap()
+        XCTAssertTrue(require("tab.search").exists)
+        XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 8), "搜索页缺少系统搜索框")
+        XCTAssertTrue(require("search.empty").exists)
     }
 }

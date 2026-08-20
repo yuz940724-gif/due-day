@@ -21,6 +21,134 @@ struct MaterializationWindow: Equatable {
     }
 }
 
+enum CalendarDayStatus: String, CaseIterable, Identifiable {
+    case overdue
+    case pending
+    case paid
+    case skipped
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .overdue: "逾期"
+        case .pending: "待支付"
+        case .paid: "已完成"
+        case .skipped: "已跳过"
+        }
+    }
+}
+
+struct CalendarDaySummary: Equatable, Identifiable {
+    let date: Date
+    let totalCount: Int
+    let overdueCount: Int
+    let pendingCount: Int
+    let paidCount: Int
+    let skippedCount: Int
+
+    var id: Date { date }
+    var nonOverduePendingCount: Int { max(0, pendingCount - overdueCount) }
+
+    var statuses: [CalendarDayStatus] {
+        var result: [CalendarDayStatus] = []
+        if overdueCount > 0 { result.append(.overdue) }
+        if nonOverduePendingCount > 0 { result.append(.pending) }
+        if paidCount > 0 { result.append(.paid) }
+        if skippedCount > 0 { result.append(.skipped) }
+        return result
+    }
+}
+
+struct CalendarPosition: Equatable {
+    let month: Date
+    let date: Date
+}
+
+enum CalendarPresentation {
+    static func monthStart(_ date: Date, calendar: Calendar = CalendarDates.calendar) -> Date {
+        calendar.date(from: calendar.dateComponents([.year, .month], from: date))!
+    }
+
+    static func monthEnd(_ date: Date, calendar: Calendar = CalendarDates.calendar) -> Date {
+        let start = monthStart(date, calendar: calendar)
+        let dayCount = calendar.range(of: .day, in: .month, for: start)!.count
+        return calendar.date(byAdding: .day, value: dayCount - 1, to: start)!
+    }
+
+    static func dates(in month: Date, calendar: Calendar = CalendarDates.calendar) -> [Date] {
+        let start = monthStart(month, calendar: calendar)
+        let range = calendar.range(of: .day, in: .month, for: start)!
+        return range.map { calendar.date(byAdding: .day, value: $0 - 1, to: start)! }
+    }
+
+    static func periods(on date: Date, from periods: [BillPeriod], calendar: Calendar = CalendarDates.calendar) -> [BillPeriod] {
+        periods
+            .filter { calendar.isDate($0.dueDate, inSameDayAs: date) }
+            .sorted { lhs, rhs in
+                lhs.dueDate == rhs.dueDate ? lhs.sequence < rhs.sequence : lhs.dueDate < rhs.dueDate
+            }
+    }
+
+    static func summary(for date: Date, periods allPeriods: [BillPeriod], today: Date = .now, calendar: Calendar = CalendarDates.calendar) -> CalendarDaySummary {
+        let dayPeriods = periods(on: date, from: allPeriods, calendar: calendar)
+        let normalizedToday = calendar.startOfDay(for: today)
+        let overdueCount = dayPeriods.filter { $0.status == .pending && $0.dueDate < normalizedToday }.count
+        let pendingCount = dayPeriods.filter { $0.status == .pending }.count
+        let paidCount = dayPeriods.filter { $0.status == .paid }.count
+        let skippedCount = dayPeriods.filter { $0.status == .skipped }.count
+        return CalendarDaySummary(
+            date: calendar.startOfDay(for: date),
+            totalCount: dayPeriods.count,
+            overdueCount: overdueCount,
+            pendingCount: pendingCount,
+            paidCount: paidCount,
+            skippedCount: skippedCount
+        )
+    }
+
+    static func summaries(in month: Date, periods allPeriods: [BillPeriod], today: Date = .now, calendar: Calendar = CalendarDates.calendar) -> [CalendarDaySummary] {
+        dates(in: month, calendar: calendar).map { summary(for: $0, periods: allPeriods, today: today, calendar: calendar) }
+    }
+
+    static func initialPosition(periods allPeriods: [BillPeriod], today: Date = .now, calendar: Calendar = CalendarDates.calendar) -> CalendarPosition {
+        let normalizedToday = calendar.startOfDay(for: today)
+        let currentMonth = monthStart(normalizedToday, calendar: calendar)
+        if !periods(on: normalizedToday, from: allPeriods, calendar: calendar).isEmpty {
+            return CalendarPosition(month: currentMonth, date: normalizedToday)
+        }
+
+        if let next = allPeriods
+            .filter({ $0.status == .pending && $0.dueDate >= normalizedToday })
+            .sorted(by: { $0.dueDate == $1.dueDate ? $0.sequence < $1.sequence : $0.dueDate < $1.dueDate })
+            .first {
+            return CalendarPosition(month: monthStart(next.dueDate, calendar: calendar), date: next.dueDate)
+        }
+
+        if let currentMonthPeriod = allPeriods
+            .filter({ calendar.isDate($0.dueDate, equalTo: currentMonth, toGranularity: .month) })
+            .sorted(by: { $0.dueDate == $1.dueDate ? $0.sequence < $1.sequence : $0.dueDate < $1.dueDate })
+            .first {
+            return CalendarPosition(month: currentMonth, date: currentMonthPeriod.dueDate)
+        }
+
+        return CalendarPosition(month: currentMonth, date: normalizedToday)
+    }
+
+    static func firstDate(in month: Date, periods: [BillPeriod], today: Date = .now, calendar: Calendar = CalendarDates.calendar) -> Date {
+        let normalizedToday = calendar.startOfDay(for: today)
+        let candidates = periods
+            .filter { calendar.isDate($0.dueDate, equalTo: month, toGranularity: .month) }
+            .sorted { lhs, rhs in
+                lhs.dueDate == rhs.dueDate ? lhs.sequence < rhs.sequence : lhs.dueDate < rhs.dueDate
+            }
+        if let next = candidates.first(where: { $0.status == .pending && $0.dueDate >= normalizedToday }) {
+            return next.dueDate
+        }
+        return candidates.first?.dueDate ?? monthStart(month, calendar: calendar)
+    }
+}
+
 enum BillingMaterializer {
     static func run(_ context: ModelContext, _ plans: [BillingPlan], referenceDate: Date = .now) throws {
         let window = MaterializationWindow.around(referenceDate: referenceDate)

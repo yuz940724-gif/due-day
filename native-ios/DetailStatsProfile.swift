@@ -83,10 +83,23 @@ struct StatsView: View {
 struct ProfileView: View {
     @Environment(\.modelContext) private var context
     @EnvironmentObject private var notifications: NotificationCoordinator
+    @AppStorage("app.appearance") private var appearanceRaw = AppAppearance.system.rawValue
     @State private var stats = false
     var body: some View {
         List {
             Section { Label("本地体验模式", systemImage: "iphone"); Text("计划和账期只保存在本机，没有登录、云同步或真实支付能力。\n通知已支持本地提醒；备份与恢复支持 JSON 导入导出。").font(.footnote).foregroundStyle(Color.muted) }
+            Section("外观") {
+                Picker("显示模式", selection: $appearanceRaw) {
+                    ForEach(AppAppearance.allCases) { option in
+                        Text(option.label).tag(option.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("profile.appearance")
+                Text("默认跟随 iPhone；也可以固定为浅色或深色。")
+                    .font(.footnote)
+                    .foregroundStyle(Color.muted)
+            }
             Section("通知") {
                 HStack { Label("系统权限", systemImage: "bell"); Spacer(); Text(notifications.permission.label).foregroundStyle(notifications.isAvailable ? Color.accent : Color.warning).accessibilityIdentifier("profile.notifications.permission.status") }.accessibilityIdentifier("profile.notifications.permission")
                 Toggle("启用账单提醒", isOn: Binding(get: { notifications.isEnabled }, set: { value in Task { await notifications.setEnabled(value, context: context) } })).accessibilityIdentifier("profile.notifications.toggle").disabled(!notifications.isAvailable && notifications.permission != .notDetermined)
