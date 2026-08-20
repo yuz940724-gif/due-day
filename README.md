@@ -11,7 +11,8 @@ The primary client is now built with SwiftUI and SwiftData. It opens without log
 ## Current capabilities
 
 - Home dashboard focused on the next payment, overdue items, monthly progress, and upcoming bills.
-- Calendar and bill-plan views with pending, completed, paused, and archived states.
+- Calendar and bill-plan views with generated payment periods plus pending, completed, paused, and archived states.
+- Dedicated system search for bill names, institutions, card suffixes, dates, and statuses.
 - Create and edit recurring plans for credit cards, mortgages, loans, insurance, subscriptions, and other fixed payments.
 - Monthly, quarterly, yearly, and installment schedules with optional total installment counts.
 - Explicit unknown-amount handling so missing amounts are never counted as zero.
@@ -22,21 +23,26 @@ The primary client is now built with SwiftUI and SwiftData. It opens without log
 
 ## Latest update
 
-- Fixed bill-plan filter chips so unselected groups keep readable text on physical iPhones.
-- Restored the native iOS app icon asset for the home screen.
-- Verified the simulator test suite and installed/launched the updated build on an iPhone 16 Pro.
+- Rebuilt the native home experience around a compact greeting, the next payment, monthly progress, and upcoming bills.
+- Materialized recurring bill plans into payment periods so due dates now appear in the calendar.
+- Added a dedicated system search surface and a system-native white/black appearance, with Liquid Glass navigation on iOS 26 where supported.
+- Refreshed the screenshot set from the current build and verified 34 simulator tests with zero failures.
 
 ## Screenshots
 
 Captured from the native SwiftUI app on the iPhone 17 Simulator running iOS 26.5.
 
-| Home | Create a bill | Bill details |
+| Light home | Dark home | Calendar |
 | --- | --- | --- |
-| <img src="docs/screenshots/native-ios/home.png" alt="DueDay native home screen" width="220"> | <img src="docs/screenshots/native-ios/bill-form.png" alt="DueDay native create bill screen" width="220"> | <img src="docs/screenshots/native-ios/bill-detail.png" alt="DueDay native bill details screen" width="220"> |
+| <img src="docs/screenshots/native-ios/home.png" alt="DueDay native light home screen" width="220"> | <img src="docs/screenshots/native-ios/home-dark.png" alt="DueDay native dark home screen" width="220"> | <img src="docs/screenshots/native-ios/calendar.png" alt="DueDay native bill calendar" width="220"> |
 
-| Edit a bill | Local notification | Backup and restore |
+| Bill plans | Search | Create a bill |
 | --- | --- | --- |
-| <img src="docs/screenshots/native-ios/bill-edit.png" alt="DueDay native edit bill screen" width="220"> | <img src="docs/screenshots/native-ios/local-notification.png" alt="DueDay local notification banner" width="220"> | <img src="docs/screenshots/native-ios/backup.png" alt="DueDay backup and restore screen" width="220"> |
+| <img src="docs/screenshots/native-ios/bills.png" alt="DueDay native bill plans" width="220"> | <img src="docs/screenshots/native-ios/search.png" alt="DueDay native bill search" width="220"> | <img src="docs/screenshots/native-ios/bill-form.png" alt="DueDay native create bill screen" width="220"> |
+
+| Bill details | Local notification | Backup and restore |
+| --- | --- | --- |
+| <img src="docs/screenshots/native-ios/bill-detail.png" alt="DueDay native bill details screen" width="220"> | <img src="docs/screenshots/native-ios/local-notification.png" alt="DueDay local notification banner" width="220"> | <img src="docs/screenshots/native-ios/backup.png" alt="DueDay backup and restore screen" width="220"> |
 
 ## Product principles
 
@@ -94,11 +100,11 @@ Command-line verification:
 ```bash
 cd native-ios
 xcodebuild -project DueDay.xcodeproj -scheme DueDay \
-  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
-  CODE_SIGNING_ALLOWED=NO test
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' \
+  test
 ```
 
-The checked-in simulator acceptance baseline is 29 passing tests: 27 unit tests and 2 end-to-end UI tests. The main flow also passes in Dark Mode with accessibility extra-large Dynamic Type. Physical-device notification, iCloud document access, sharing, background delivery, and lock-screen presentation still require manual acceptance testing.
+The checked-in simulator acceptance baseline is 34 passing tests: 31 unit tests and 3 end-to-end UI tests. The current build has also been visually captured in both Light and Dark appearance. Physical-device notification, iCloud document access, sharing, background delivery, and lock-screen presentation still require manual acceptance testing.
 
 ## Run the preserved Flutter client
 
@@ -130,7 +136,7 @@ Flutter v1 backup migration is supported through **Profile → Backup & Restore 
 
 ## Status
 
-Open-source, personal-use iOS MVP. The native version has completed simulator acceptance and a physical-device install/launch smoke test; final visual acceptance on the device is still pending.
+Open-source, personal-use iOS MVP. The native version has completed simulator acceptance, and the latest signed build has been installed on an iPhone 16 Pro. Final visual acceptance on the device is still pending.
 
 ## License
 

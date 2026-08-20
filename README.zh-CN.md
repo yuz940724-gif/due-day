@@ -11,7 +11,8 @@ DueDay 用来帮助用户提前管理信用卡、贷款、房贷、保险、会�
 ## 当前能力
 
 - 首页聚焦下一笔支付、逾期事项、本月进度和近期账单。
-- 日历和账单计划视图，支持待支付、已完成、已暂停和已归档状态。
+- 日历和账单计划视图会生成具体账期，并支持待支付、已完成、已暂停和已归档状态。
+- 提供独立的系统搜索，可按账单名称、机构、尾号、日期和状态查找。
 - 新增、编辑信用卡、房贷、贷款、保险、会员订阅及其他固定支付计划。
 - 支持每月、每季度、每年和分期计划，也可以配置总期数。
 - 未知金额单独处理，不会被当作 0 元计入统计。
@@ -22,21 +23,26 @@ DueDay 用来帮助用户提前管理信用卡、贷款、房贷、保险、会�
 
 ## 最新更新
 
-- 修复真机上账单计划未选中分组文字不可见的问题。
-- 补回原生 iOS App 的桌面图标资源。
-- 已通过模拟器测试，并在 iPhone 16 Pro 上完成更新版本的安装和启动验证。
+- 重做原生首页信息层级，聚焦问候、下一笔支付、本月进度和近期账单。
+- 将周期账单计划生成具体账期，到期事项现在会正确展示在日历中。
+- 新增独立系统搜索，并切换为系统原生白色/黑色外观；iOS 26 支持时使用 Liquid Glass 导航材质。
+- 已使用当前构建刷新整套截图，并完成 34 项模拟器测试，0 失败。
 
 ## 页面截图
 
 以下截图来自运行 iOS 26.5 的 iPhone 17 模拟器，展示的是 SwiftUI 原生版本。
 
-| 首页 | 新增账单 | 账单详情 |
+| 浅色首页 | 深色首页 | 账单日历 |
 | --- | --- | --- |
-| <img src="docs/screenshots/native-ios/home.png" alt="DueDay 原生首页" width="220"> | <img src="docs/screenshots/native-ios/bill-form.png" alt="DueDay 原生新增账单" width="220"> | <img src="docs/screenshots/native-ios/bill-detail.png" alt="DueDay 原生账单详情" width="220"> |
+| <img src="docs/screenshots/native-ios/home.png" alt="DueDay 原生浅色首页" width="220"> | <img src="docs/screenshots/native-ios/home-dark.png" alt="DueDay 原生深色首页" width="220"> | <img src="docs/screenshots/native-ios/calendar.png" alt="DueDay 原生账单日历" width="220"> |
 
-| 编辑账单 | 本地通知 | 备份与恢复 |
+| 账单计划 | 搜索 | 新增账单 |
 | --- | --- | --- |
-| <img src="docs/screenshots/native-ios/bill-edit.png" alt="DueDay 原生编辑账单" width="220"> | <img src="docs/screenshots/native-ios/local-notification.png" alt="DueDay 本地通知横幅" width="220"> | <img src="docs/screenshots/native-ios/backup.png" alt="DueDay 备份与恢复" width="220"> |
+| <img src="docs/screenshots/native-ios/bills.png" alt="DueDay 原生账单计划" width="220"> | <img src="docs/screenshots/native-ios/search.png" alt="DueDay 原生账单搜索" width="220"> | <img src="docs/screenshots/native-ios/bill-form.png" alt="DueDay 原生新增账单" width="220"> |
+
+| 账单详情 | 本地通知 | 备份与恢复 |
+| --- | --- | --- |
+| <img src="docs/screenshots/native-ios/bill-detail.png" alt="DueDay 原生账单详情" width="220"> | <img src="docs/screenshots/native-ios/local-notification.png" alt="DueDay 本地通知横幅" width="220"> | <img src="docs/screenshots/native-ios/backup.png" alt="DueDay 备份与恢复" width="220"> |
 
 ## 产品原则
 
@@ -94,11 +100,11 @@ docs/                    # 产品、迁移、存储、通知和 UI 文档
 ```bash
 cd native-ios
 xcodebuild -project DueDay.xcodeproj -scheme DueDay \
-  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
-  CODE_SIGNING_ALLOWED=NO test
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' \
+  test
 ```
 
-当前提交的模拟器验收基线是 29 项全部通过：27 项单元测试 + 2 项端到端 UI 测试。主要流程也已在深色模式和无障碍超大动态字体下通过。真机通知、iCloud 文件访问、系统分享、后台投递和锁屏展示仍需要后续人工验收。
+当前提交的模拟器验收基线是 34 项全部通过：31 项单元测试 + 3 项端到端 UI 测试。当前构建也已分别完成浅色和深色外观截图检查。真机通知、iCloud 文件访问、系统分享、后台投递和锁屏展示仍需要后续人工验收。
 
 ## 运行保留的 Flutter 版本
 
@@ -130,7 +136,7 @@ flutter run -d <ios-simulator-id>
 
 ## 项目状态
 
-开源的个人自用 iOS MVP。原生版本已经完成模拟器验收，并完成真机安装/启动冒烟验证；最终界面目视验收仍待确认。
+开源的个人自用 iOS MVP。原生版本已经完成模拟器验收，最新签名构建也已安装到 iPhone 16 Pro；最终真机界面目视验收仍待确认。
 
 ## License
 

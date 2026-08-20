@@ -34,15 +34,15 @@ xcodebuild -project DueDay.xcodeproj -scheme DueDay -showdestinations
 xcodebuild -project DueDay.xcodeproj -scheme DueDay \
   -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 xcodebuild -project DueDay.xcodeproj -scheme DueDay \
-  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
-  CODE_SIGNING_ALLOWED=NO test
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' \
+  test
 ```
 
 当前测试覆盖周期边界、月末/闰年、账期状态、金额格式化、精确两位小数金额解析、总期数物化、ReminderRule canonical ID 同步、通知快照规则、当天/第 366 天边界、过去/非法值/超 horizon 排除、稳定 ID、64 条上限、未知金额文案及 fake gateway 幂等重建；账单代表账期筛选覆盖待处理/已完成历史/暂停/归档口径，DashboardSummary 覆盖跳过排除、未知金额分离、完成进度和六个月摘要。
 
 ## UI 自动化验收
 
-工程包含 `DueDayUITests`，并已加入共享 `DueDay` scheme 的 TestAction。测试使用稳定的 accessibility identifier（例如 `empty.addBill`、`form.title`、`form.reminder.3`、`form.totalInstallments`、`detail.markPaid`、`profile.backup`），不依赖中文视图层级。首个端到端场景覆盖：干净启动空状态、创建“自用版验收账单”（128.88、每月）、首页/账单列表、已还与恢复待支付、详情提醒/自动扣款信息、编辑页提醒与总期数控件、终止重启后仍存在、四个 Tab、通知入口和备份/恢复入口。第二个系统场景会验证通知权限、约 10 秒本地通知横幅、JSON 保存到“文件”、从系统文件面板重新选回备份，以及恢复前二次确认。
+工程包含 `DueDayUITests`，并已加入共享 `DueDay` scheme 的 TestAction。测试使用稳定的 accessibility identifier（例如 `empty.addBill`、`form.title`、`form.reminder.3`、`form.totalInstallments`、`detail.markPaid`、`profile.backup`），不依赖中文视图层级。首个端到端场景覆盖：干净启动空状态、创建“自用版验收账单”（128.88、每月）、首页/账单列表、账期写入日历、已还与恢复待支付、详情提醒/自动扣款信息、编辑页提醒与总期数控件、终止重启后仍存在、四个 Tab、搜索、通知入口和备份/恢复入口。第二个系统场景会验证通知权限、约 10 秒本地通知横幅、JSON 保存到“文件”、从系统文件面板重新选回备份，以及恢复前二次确认。第三个场景验证独立搜索页和外观设置入口。
 
 UI 测试通过 `--ui-testing --ui-reset` 使用 Debug 专用 SwiftData 容器，并按测试用例隔离；正式 App 和 Release 配置不启用该路径，也不会清理用户数据。失败时 XCTest 会保留 `.xcresult`、UI 层级诊断和截图；验收截图由测试附件导出。新增账单页面使用系统大尺寸 sheet，且 App target 开启系统 Launch Screen 生成，避免现代 iPhone 进入旧式 320×480 兼容窗口。
 
@@ -50,11 +50,11 @@ UI 测试通过 `--ui-testing --ui-reset` 使用 Debug 专用 SwiftData 容器�
 
 ```sh
 xcodebuild -project DueDay.xcodeproj -scheme DueDay \
-  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
-  CODE_SIGNING_ALLOWED=NO test -only-testing:DueDayUITests
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' \
+  test -only-testing:DueDayUITests
 ```
 
-当前共享 scheme 在 iPhone 17 / iOS 26.5 模拟器验收为 27 项单元测试 + 2 项 UI 端到端测试，共 29 项通过。主要账单流程另在深色模式 + `accessibility-extra-large` 动态字体下通过；首页卡片、账单行和金额输入会在无障碍字号下自动改为纵向布局，颜色会随 Light/Dark 切换。UI 附件包含首页、新增/键盘、编辑、详情、通知横幅、JSON 导出/导入和恢复确认；iCloud 安全作用域、系统分享及真机后台/锁屏展示仍需人工验证；本阶段不安装或运行真机。
+当前共享 scheme 在 iPhone 17 Pro / iOS 26.5 模拟器验收为 31 项单元测试 + 3 项 UI 端到端测试，共 34 项通过，0 失败。UI 附件包含浅色/深色首页、日历、账单计划、搜索、新增/键盘、编辑、详情、通知横幅、备份与 JSON 导出/导入和恢复确认。最新签名构建已安装到 iPhone 16 Pro；iCloud 安全作用域、系统分享及真机后台/锁屏展示仍需人工验证。
 
 ## 后续
 
